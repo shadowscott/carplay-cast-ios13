@@ -279,13 +279,51 @@ will launch their normal Carplay mode UI
 
 %end
 
+%group CARPLAY13
+
+%hook CRCarPlayAppDeclaration
+%property (assign,nonatomic) BOOL CarPlayEnable; 
+
++(id)declarationForAppProxy:(id)arg1 {
+    // arg1 LSApplicationProxy
+
+	id orig = %orig;
+    if (orig == nil) {
+        orig = [[objc_getClass("CRCarPlayAppDeclaration") alloc] init];
+        objcInvoke_1(orig, @"setBundleIdentifier:", objcInvoke(arg1, @"applicationIdentifier"));
+        objcInvoke_1(orig, @"setSupportsMaps:", 1);
+
+        // keep track of force enabled apps
+        objcInvoke_1(orig, @"setCarPlayEnable:", 1);
+    }
+
+	return orig;
+}
+%end
+
+%hook CRCarPlayAppPolicyEvaluator
+
+-(id)effectivePolicyForAppDeclaration:(id)arg1 {
+    id orig = %orig;
+    if (objcInvokeT(arg1, @"CarPlayEnable", BOOL)) {
+        // dont launch as template
+        objcInvoke_1(orig, @"setLaunchUsingMapsTemplateUI:", 0);
+    }
+    return orig;
+}
+
+%end
+
+%end
+
 
 %ctor
 {
-    BAIL_IF_UNSUPPORTED_IOS;
-
     if ([[[NSBundle mainBundle] bundleIdentifier] isEqualToString:@"com.apple.CarPlayApp"])
     {
+        if(IS_IOS13) {
+            %init(CARPLAY13);
+        }
         %init(CARPLAY);
         // Upload any relevant crashlogs
         symbolicateAndUploadCrashlogs();
