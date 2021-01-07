@@ -48,10 +48,15 @@ void addCarplayDeclarationsToAppLibrary(id appLibrary)
             id carplayDeclaration = [[objc_getClass("CRCarPlayAppDeclaration") alloc] init];
             // This is not template-driven -- important. Without specifying this, the process that hosts the Templates will continuously spin up
             // and crash, trying to find a non-existant template for this declaration
-            objcInvoke_1(carplayDeclaration, @"setSupportsTemplates:", 0);
+            if(!IS_IOS13) {
+                // These dont exist on iOS 13
+                objcInvoke_1(carplayDeclaration, @"setSupportsTemplates:", 0);
+                objcInvoke_1(carplayDeclaration, @"setBundlePath:", objcInvoke(appInfo, @"bundleURL"));
+            }
+            
             objcInvoke_1(carplayDeclaration, @"setSupportsMaps:", 1);
             objcInvoke_1(carplayDeclaration, @"setBundleIdentifier:", appBundleID);
-            objcInvoke_1(carplayDeclaration, @"setBundlePath:", objcInvoke(appInfo, @"bundleURL"));
+            
             setIvar(appInfo, @"_carPlayDeclaration", carplayDeclaration);
 
             // Add a tag to the app, to keep track of which apps have been "forced" into carplay

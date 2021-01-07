@@ -10,6 +10,8 @@
     } \
 }
 
+#define IS_IOS13 (kCFCoreFoundationVersionNumber < 1751.108)
+
 #define LOG_LIFECYCLE_EVENT { \
     NSString *func = [NSString stringWithFormat:@"%s", __func__]; \
     if ([func containsString:@"_method$"]) \
