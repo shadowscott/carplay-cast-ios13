@@ -25,7 +25,7 @@ Invoked when the device is being locked while applications are running/active
     {
         // This app is going to be backgrounded, If there is an active lock-prevention assertion for it, prevent the backgrounding.
         // This keeps CarPlay apps interactive when the device locks
-        NSString *sceneAppBundleID = objcInvoke(objcInvoke(objcInvoke(arg2, @"client"), @"process"), @"bundleIdentifier");
+        NSString *sceneAppBundleID = objcInvoke(getIvar(objcInvoke(arg2, @"client"), @"_process"), @"bundleIdentifier");
         NSArray *lockAssertions = objc_getAssociatedObject([UIApplication sharedApplication], &kPropertyKey_lockAssertionIdentifiers);
         if ([lockAssertions containsObject:sceneAppBundleID])
         {
@@ -153,7 +153,7 @@ Use this to prevent the App from going to sleep when other applications are laun
     id sceneClient = objcInvoke(self, @"client");
     if ([sceneClient respondsToSelector:NSSelectorFromString(@"process")])
     {
-        NSString *sceneAppBundleID = objcInvoke(objcInvoke(sceneClient, @"process"), @"bundleIdentifier");
+        NSString *sceneAppBundleID = objcInvoke(getIvar(objcInvoke(self, @"client"), @"_process"), @"bundleIdentifier");
         NSArray *lockAssertions = objc_getAssociatedObject([UIApplication sharedApplication], &kPropertyKey_lockAssertionIdentifiers);
         if ([lockAssertions containsObject:sceneAppBundleID])
         {
@@ -389,7 +389,7 @@ int hook_BKSDisplayServicesSetScreenBlanked(int arg1)
         id appScene = objcInvoke(sceneHandle, @"sceneIfExists");
         if (appScene)
         {
-            NSString *sceneAppBundleID = objcInvoke(objcInvoke(objcInvoke(appScene, @"client"), @"process"), @"bundleIdentifier");
+            NSString *sceneAppBundleID = objcInvoke(getIvar(objcInvoke(appScene, @"client"), @"_process"), @"bundleIdentifier");
             if ([lockAssertions containsObject:sceneAppBundleID])
             {
                 // Turn the screen off as originally intended
@@ -410,12 +410,18 @@ int hook_BKSDisplayServicesSetScreenBlanked(int arg1)
 
 %end
 
+%group SPRINGBOARD13
+
+%end
+
 %ctor
 {
-    BAIL_IF_UNSUPPORTED_IOS;
-
     if ([[[NSBundle mainBundle] bundleIdentifier] isEqualToString:@"com.apple.springboard"])
     {
+        if(IS_IOS13)
+        {
+            %init(SPRINGBOARD13);
+        }
         %init(SPRINGBOARD);
         // Hook BKSDisplayServicesSetScreenBlanked() - necessary for allowing animations/video when the screen is off
         void *_BKSDisplayServicesSetScreenBlanked = dlsym(dlopen(NULL, 0), "BKSDisplayServicesSetScreenBlanked");

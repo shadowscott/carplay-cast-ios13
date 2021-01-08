@@ -284,7 +284,8 @@ will launch their normal Carplay mode UI
 %hook CRCarPlayAppDeclaration
 %property (assign,nonatomic) BOOL CarPlayEnable; 
 
-+(id)declarationForAppProxy:(id)arg1 {
++(id)declarationForAppProxy:(id)arg1
+{
     // arg1 LSApplicationProxy
 
 	id orig = %orig;
@@ -303,13 +304,64 @@ will launch their normal Carplay mode UI
 
 %hook CRCarPlayAppPolicyEvaluator
 
--(id)effectivePolicyForAppDeclaration:(id)arg1 {
+-(id)effectivePolicyForAppDeclaration:(id)arg1
+{
     id orig = %orig;
     if (objcInvokeT(arg1, @"CarPlayEnable", BOOL)) {
         // dont launch as template
         objcInvoke_1(orig, @"setLaunchUsingMapsTemplateUI:", 0);
     }
     return orig;
+}
+
+%end
+
+
+%hook SBHIconManager
+
+// handle portal icon open
+-(void)iconTapped:(id)arg1
+{
+    id bundleIdentifier = objcInvoke(objcInvoke(arg1, @"icon"), @"applicationBundleID");
+    id proxy = objcInvoke_1(objc_getClass("LSApplicationProxy"), @"applicationProxyForIdentifier:", bundleIdentifier);
+    id declaration = objcInvoke_1(objc_getClass("CRCarPlayAppDeclaration"), @"declarationForAppProxy:", proxy);
+
+    if (objcInvokeT(declaration, @"CarPlayEnable", BOOL))
+    {
+        LOG_LIFECYCLE_EVENT;
+        // Notify SpringBoard of the launch. SpringBoard will host the application + UI
+        [[objc_getClass("NSDistributedNotificationCenter") defaultCenter] postNotificationName:@"com.carplayenable" object:nil userInfo:@{@"identifier": bundleIdentifier}];
+
+        // Add this item into the App History (so it shows up in the dock's "recents")
+        id sharedApp = [UIApplication sharedApplication];
+        id appHistory = objcInvoke(sharedApp, @"_currentAppHistory");
+
+        NSString *previousBundleID = nil;
+        NSArray *orderedAppHistory = objcInvoke(appHistory, @"orderedAppHistory");
+        if ([orderedAppHistory count] > 0)
+        {
+            previousBundleID = objcInvoke([orderedAppHistory firstObject], @"bundleIdentifier");
+        }
+
+        ((void (*)(id, SEL, id, id))objc_msgSend)(appHistory, NSSelectorFromString(@"_bundleIdentifierDidBecomeVisible:previousBundleIdentifier:"), bundleIdentifier, previousBundleID);
+
+        id dashboardRootController = objcInvoke(objcInvoke(sharedApp, @"_currentDashboard"), @"rootViewController");
+        id dockController = objcInvoke(dashboardRootController, @"appDockViewController");
+        objcInvoke(dockController, @"_refreshAppDock");
+
+        // If there is already a native-Carplay app running, close it
+        id dashboard = objcInvoke(sharedApp, @"_currentDashboard");
+        assertGotExpectedObject(dashboard, @"CARDashboard");
+        NSDictionary *foregroundScenes = objcInvoke(dashboard, @"identifierToForegroundAppScenesMap");
+        if ([[foregroundScenes allKeys] count] > 0)
+        {
+            id homeButtonEvent = objcInvoke_2(objc_getClass("CAREvent"), @"eventWithType:context:", 1, @"Close carplay app");
+            assertGotExpectedObject(homeButtonEvent, @"CAREvent");
+            objcInvoke_1(dashboard, @"handleEvent:", homeButtonEvent);
+        }
+        return;
+    }
+    %orig;
 }
 
 %end

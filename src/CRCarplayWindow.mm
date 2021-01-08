@@ -67,7 +67,10 @@ id getCarplayCADisplay(void)
         [[self rootWindow] addSubview:[self appContainerView]];
 
         // The scene does not show a launch image, it needs to be created manually.
-        [self setupLaunchImage];
+        if(!IS_IOS13)
+        {
+            [self setupLaunchImage];
+        }
 
         // Add the live app view
         [[self appContainerView] addSubview:objcInvoke(self.appViewController, @"view")];
@@ -111,16 +114,19 @@ id getCarplayCADisplay(void)
     UITraitCollection *interfaceStyleTrait = [UITraitCollection traitCollectionWithUserInterfaceStyle:1];
     UITraitCollection *traitCollection = [UITraitCollection traitCollectionWithTraitsFromCollections:@[carplayTrait, interfaceStyleTrait]];
 
-    UIImageView *wallpaperImageView = [[UIImageView alloc] initWithFrame:rootWindowFrame];
-    id defaultWallpaper = objcInvoke(objc_getClass("CRSUIWallpaperPreferences"), @"defaultWallpaper");
-    assertGotExpectedObject(defaultWallpaper, @"CRSUIWallpaper");
+    if(!IS_IOS13)
+    {
+        UIImageView *wallpaperImageView = [[UIImageView alloc] initWithFrame:rootWindowFrame];
+        id defaultWallpaper = objcInvoke(objc_getClass("CRSUIWallpaperPreferences"), @"defaultWallpaper");
+        assertGotExpectedObject(defaultWallpaper, @"CRSUIWallpaper");
 
-    UIImage *wallpaperImage = objcInvoke_1(defaultWallpaper, @"wallpaperImageCompatibleWithTraitCollection:", nil);
-    [wallpaperImageView setImage:wallpaperImage];
-    UIVisualEffectView *wallpaperBlurView = [[UIVisualEffectView alloc] initWithEffect:objcInvoke_1(objc_getClass("UIBlurEffect"), @"effectWithBlurRadius:", 10.0)];
-    [wallpaperBlurView setFrame:rootWindowFrame];
-    [wallpaperImageView addSubview:wallpaperBlurView];
-    [[self rootWindow] addSubview:wallpaperImageView];
+        UIImage *wallpaperImage = objcInvoke_1(defaultWallpaper, @"wallpaperImageCompatibleWithTraitCollection:", nil);
+        [wallpaperImageView setImage:wallpaperImage];
+        UIVisualEffectView *wallpaperBlurView = [[UIVisualEffectView alloc] initWithEffect:objcInvoke_1(objc_getClass("UIBlurEffect"), @"effectWithBlurRadius:", 10.0)];
+        [wallpaperBlurView setFrame:rootWindowFrame];
+        [wallpaperImageView addSubview:wallpaperBlurView];
+        [[self rootWindow] addSubview:wallpaperImageView];
+    }
 
     self.dockView = [[UIView alloc] initWithFrame:CGRectMake(0, rootWindowFrame.origin.y, CARPLAY_DOCK_WIDTH, rootWindowFrame.size.height)];
 
@@ -241,10 +247,18 @@ id getCarplayCADisplay(void)
     id sceneIdentity = objcInvoke_2(displaySceneManager, @"_sceneIdentityForApplication:createPrimaryIfRequired:", self.application, 1);
     assertGotExpectedObject(sceneIdentity, @"FBSSceneIdentity");
 
-    id sceneHandleRequest = objcInvoke_3(objc_getClass("SBApplicationSceneHandleRequest"), @"defaultRequestForApplication:sceneIdentity:displayIdentity:", self.application, sceneIdentity, mainScreenIdentity);
-    assertGotExpectedObject(sceneHandleRequest, @"SBApplicationSceneHandleRequest");
-
-    id sceneHandle = objcInvoke_1(displaySceneManager, @"fetchOrCreateApplicationSceneHandleForRequest:", sceneHandleRequest);
+    id sceneHandle = nil;
+    if(IS_IOS13)
+    {
+        sceneHandle = objcInvoke_2(displaySceneManager, @"fetchOrCreateApplicationSceneHandleForApplication:withIdentity:", self.application, sceneIdentity);
+    }
+    else 
+    {
+        id sceneHandleRequest = objcInvoke_3(objc_getClass("SBApplicationSceneHandleRequest"), @"defaultRequestForApplication:sceneIdentity:displayIdentity:", self.application, sceneIdentity, mainScreenIdentity);
+        assertGotExpectedObject(sceneHandleRequest, @"SBApplicationSceneHandleRequest");
+        sceneHandle = objcInvoke_1(displaySceneManager, @"fetchOrCreateApplicationSceneHandleForRequest:", sceneHandleRequest);
+    }
+  
     assertGotExpectedObject(sceneHandle, @"SBDeviceApplicationSceneHandle");
 
     id appSceneEntity = objcInvoke_1([objc_getClass("SBDeviceApplicationSceneEntity") alloc], @"initWithApplicationSceneHandle:", sceneHandle);
@@ -400,7 +414,7 @@ When a CarPlay App is closed
         id appScene = objcInvoke(objcInvoke(self.appViewController, @"sceneHandle"), @"sceneIfExists");
         if (appScene != nil)
         {
-            NSString *sceneAppBundleID = objcInvoke(objcInvoke(objcInvoke(appScene, @"client"), @"process"), @"bundleIdentifier");
+            NSString *sceneAppBundleID = objcInvoke(getIvar(objcInvoke(appScene, @"client"), @"_process"), @"bundleIdentifier");
             [lockAssertions removeObject:sceneAppBundleID];
 
             // Send the app to the background *if it is not on the main screen*
@@ -454,7 +468,7 @@ When the "rotate orientation" button is pressed on a CarplayEnabled app window
         return;
     }
 
-    NSString *sceneAppBundleID = objcInvoke(objcInvoke(objcInvoke(appScene, @"client"), @"process"), @"bundleIdentifier");
+    NSString *sceneAppBundleID = objcInvoke(getIvar(objcInvoke(appScene, @"client"), @"_process"), @"bundleIdentifier");
 
     [[objc_getClass("NSDistributedNotificationCenter") defaultCenter] postNotificationName:@"com.carplayenable.orientation" object:sceneAppBundleID userInfo:@{@"orientation": @(desiredOrientation)}];
     [self resizeAppViewForOrientation:desiredOrientation fullscreen:self.isFullscreen forceUpdate:NO];
