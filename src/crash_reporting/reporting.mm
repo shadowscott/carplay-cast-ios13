@@ -133,6 +133,7 @@ void gatherCr4shedLogs(NSString *outputDirectory, NSArray *alreadyUploaded)
 
 void symbolicateAndUploadCrashlogs(void)
 {
+    return;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         // Setup a tmp directory to contain the gathered crash reports
         NSString *crashReportsStash = @"/tmp/crash_reports";
