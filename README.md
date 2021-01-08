@@ -1,8 +1,3 @@
-# carplay-cast
+# carplay-cast ios 13
 
-![Build](https://github.com/EthanArbuckle/carplay-cast/workflows/Build/badge.svg)
-
-Use any application with CarPlay. iOS 14+
-
-
-![](.github/imgs/youtube-launch.gif)
+This is a highly unstable/experimental port of carplay-cast for ios 13. It contains many issues, and should only be used for testing. Support will not be provided for this particular fork. Please do not file issues to the original author regarding this fork.
